@@ -1,0 +1,147 @@
+<form>
+  <label>DNS</label>
+  <fieldset submitButton="false">
+    <input type="time" token="timeRange">
+      <label>Time Range</label>
+      <default>
+        <earliest>-24h@h</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <single>
+        <title>Top Client</title>
+        <search>
+          <query>| tstats summariesonly=true count from datamodel=Named_DNS where nodename=All_Named_Data.Named_Query by All_Named_Data.src_ip | sort - count | head 1 | rename All_Named_Data.src_ip AS src_ip | lookup dnslookup clientip as src_ip | eval topClient=src_ip." (".clienthost.")" | fields topClient</query>
+          <earliest>$timeRange.earliest$</earliest>
+          <latest>$timeRange.latest$</latest>
+        </search>
+        <option name="colorBy">value</option>
+        <option name="colorMode">none</option>
+        <option name="numberPrecision">0</option>
+        <option name="showSparkline">1</option>
+        <option name="showTrendIndicator">1</option>
+        <option name="trendColorInterpretation">standard</option>
+        <option name="trendDisplayMode">absolute</option>
+        <option name="useColors">0</option>
+        <option name="useThousandSeparators">1</option>
+        <option name="linkView">search</option>
+        <option name="drilldown">none</option>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>DNS server handling most query's</title>
+        <search>
+          <query>| tstats summariesonly=true count from datamodel=Named_DNS where nodename=All_Named_Data.Named_Query by host  | sort - count | head 1</query>
+          <earliest>$timeRange.earliest$</earliest>
+          <latest>$timeRange.latest$</latest>
+        </search>
+        <option name="colorBy">value</option>
+        <option name="colorMode">none</option>
+        <option name="numberPrecision">0</option>
+        <option name="showSparkline">1</option>
+        <option name="showTrendIndicator">1</option>
+        <option name="trendColorInterpretation">standard</option>
+        <option name="trendDisplayMode">absolute</option>
+        <option name="useColors">0</option>
+        <option name="useThousandSeparators">1</option>
+        <option name="linkView">search</option>
+        <option name="drilldown">none</option>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>Most requested query</title>
+        <search>
+          <query>| tstats summariesonly=true count from datamodel=Named_DNS where nodename=All_Named_Data.Named_Query AND All_Named_Data.tld!="arpa" by All_Named_Data.query | sort - count | head 1 | rename All_Named_Data.query AS query | eval topDomain=query." (".count.")" | fields topDomain</query>
+          <earliest>$timeRange.earliest$</earliest>
+          <latest>$timeRange.latest$</latest>
+        </search>
+        <option name="colorBy">value</option>
+        <option name="colorMode">none</option>
+        <option name="numberPrecision">0</option>
+        <option name="showSparkline">1</option>
+        <option name="showTrendIndicator">1</option>
+        <option name="trendColorInterpretation">standard</option>
+        <option name="trendDisplayMode">absolute</option>
+        <option name="useColors">0</option>
+        <option name="useThousandSeparators">1</option>
+        <option name="linkView">search</option>
+        <option name="drilldown">none</option>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title># of query's</title>
+        <search>
+          <query>| tstats summariesonly=true count from datamodel=Named_DNS where nodename=All_Named_Data.Named_Query</query>
+          <earliest>$timeRange.earliest$</earliest>
+          <latest>$timeRange.latest$</latest>
+        </search>
+        <option name="colorBy">value</option>
+        <option name="colorMode">none</option>
+        <option name="numberPrecision">0</option>
+        <option name="showSparkline">1</option>
+        <option name="showTrendIndicator">1</option>
+        <option name="trendColorInterpretation">standard</option>
+        <option name="trendDisplayMode">absolute</option>
+        <option name="useColors">0</option>
+        <option name="useThousandSeparators">1</option>
+        <option name="linkView">search</option>
+        <option name="drilldown">none</option>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <title>Top 50 clients</title>
+        <search>
+          <query>| tstats summariesonly=true count from datamodel=Named_DNS where nodename=All_Named_Data.Named_Query by All_Named_Data.src_ip | eventstats mean(count) AS Average, stdev(count) as stdev  | eval Average=round(Average), stdev=round(stdev), upperLimit=Average+(2*stdev)  | WHERE count&gt;upperLimit  | sort - count  | head 50  | rename All_Named_Data.src_ip as src_ip | lookup dnslookup clientip as src_ip  | fields src_ip clienthost count Average stdev upperLimit  | rename src_ip AS "Client IP", clienthost AS "Client DNS name", count AS "# DNS request", Average AS "Average per system", stdev AS "Standard deviation", upperLimit AS "Upper Limit"</query>
+          <earliest>$timeRange.earliest$</earliest>
+          <latest>$timeRange.latest$</latest>
+        </search>
+        <option name="wrap">true</option>
+        <option name="rowNumbers">false</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">cell</option>
+        <option name="count">10</option>
+      </table>
+    </panel>
+    <panel>
+      <table>
+        <title>Top 50 Non RFC1918 clients</title>
+        <search>
+          <query>| tstats summariesonly=true count from datamodel=Named_DNS where nodename=All_Named_Data.Named_Query by All_Named_Data.src_ip | rename All_Named_Data.src_ip as src_ip | search src_ip!=10.0.0.0/8 src_ip!=172.16.0.0/12 src_ip!=192.168.0.0/16 | eventstats mean(count) AS Average, stdev(count) as stdev  | eval Average=round(Average), stdev=round(stdev), upperLimit=Average+(2*stdev)  | WHERE count&gt;upperLimit  | sort - count  | head 50  | lookup dnslookup clientip as src_ip  | fields src_ip clienthost count Average stdev upperLimit  | rename src_ip AS "Client IP", clienthost AS "Client DNS name", count AS "# DNS request", Average AS "Average per system", stdev AS "Standard deviation", upperLimit AS "Upper Limit"</query>
+          <earliest>$timeRange.earliest$</earliest>
+          <latest>$timeRange.latest$</latest>
+        </search>
+        <option name="wrap">true</option>
+        <option name="rowNumbers">false</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">cell</option>
+        <option name="count">10</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <title>Blocked DNS query's</title>
+        <search>
+          <query>| tstats summariesonly=true dc(All_Named_Data.query) AS uniek_query count AS events from datamodel=Named_DNS where nodename=All_Named_Data.Named_Intercept by All_Named_Data.src_ip, All_Named_Data.reason | rename All_Named_Data.src_ip AS "Client IP", All_Named_Data.reason AS "URL block reason", uniek_query AS "# unique URL's", events AS "# attempts"</query>
+          <earliest>$timeRange.earliest$</earliest>
+          <latest>$timeRange.latest$</latest>
+        </search>
+        <option name="wrap">true</option>
+        <option name="rowNumbers">false</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">cell</option>
+        <option name="count">10</option>
+      </table>
+    </panel>
+  </row>
+</form>
